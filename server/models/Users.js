@@ -18,6 +18,11 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false,
       unique: true
     },
+    otp: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      unique: true
+    },
   });
 
   return Users;

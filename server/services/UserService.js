@@ -1,7 +1,10 @@
 const { Users } = require("../models");
 
 exports.getUser = async (reqBody = {}) => {
-  return await Users.findAll();
+  return await Users.findOne({
+    limit: 1,
+    where: reqBody,
+  });
 };
 
 exports.createUser = async (reqBody = {}) => {
@@ -10,5 +13,5 @@ exports.createUser = async (reqBody = {}) => {
 
 exports.isUserExists = async (reqBody = {}) => {
   console.log(reqBody);
-  return await Users.findOne(reqBody);
+  return await Users.findOne({ limit: 1, where: reqBody });
 };

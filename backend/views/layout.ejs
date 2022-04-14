@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="./style.css" />
+    <style>
+      * {
+        font-family: sans-serif;
+      }
+      .invoice {
+        border: 2px solid #000;
+        display: flex;
+        justify-content: center;
+        flex-direction: column;
+      }
+      .company {
+        margin: auto;
+      }
+      .companyName {
+        margin-bottom: 5px;
+      }
+      .tittle {
+        font-weight: bold;
+      }
+
+      .client {
+        margin: 50px 10px;
+      }
+
+      table {
+        width: 70%;
+        margin: 0 15%;
+      }
+
+      th {
+        text-align: left;
+      }
+    </style>
+    <title>Hello World</title>
+  </head>
+  <body>
+    <div class="invoice">
+      <div class="company">
+        <div class="companyDetails">
+          <h1 class="companyName">Marketonic</h1>
+        </div>
+        <div class="companyDetails">
+          <span class="tittle">Reg. Office: </span> <span>Allahabad</span>
+        </div>
+        <div class="companyDetails">
+          <span class="tittle">Corporate Office: </span> <span>Naini</span>
+        </div>
+        <div class="companyDetails">
+          <span class="tittle">Contact: </span>
+          <span>+91-8976549876, +91-8976549876</span>
+        </div>
+        <div class="companyDetails">
+          <span class="tittle">GSTIN: </span> <span>45678iojlkhgty56</span>
+        </div>
+      </div>
+      <div class="client">
+        <div class="companyDetails">
+          <span class="tittle">Invoice No. : </span><span>IN0140</span>
+        </div>
+        <div class="clientDetails">
+          <span class="tittle">Date : </span><span>14/01/22</span>
+        </div>
+        <div class="clientDetails">
+          <span class="tittle">Party Name : </span><span>The Eye store</span>
+        </div>
+        <div class="clientDetails">
+          <span class="tittle">Billing Address : </span
+          ><span>43/15 S P Marg, Civil Lines, Prayagraj 211001</span>
+        </div>
+        <div class="clientDetails">
+          <span class="tittle">GSTIN : </span><span>09AAPFT9178FIZD</span>
+        </div>
+        <div class="clientDetails">
+          <span class="tittle">Mob. : </span><span>98864466774</span>
+        </div>
+      </div>
+
+      <div class="table">
+        <table>
+          <tr>
+            <th>S/N</th>
+            <th>Service</th>
+            <th>HSN Code</th>
+            <th>Price</th>
+          </tr>
+          <tr>
+            <td>1.</td>
+            <td><%= name %></td>
+            <td>24567</td>
+            <td>1000</td>
+          </tr>
+          <tr>
+            <td>2.</td>
+            <td>Francisco Chang</td>
+            <td>234234</td>
+            <td>1000</td>
+          </tr>
+          <tr>
+            <td></td>
+            <td></td>
+            <td><b>Total Amount</b></td>
+            <td>2000</td>
+          </tr>
+          <tr>
+            <td></td>
+            <td></td>
+            <td><b>CGST 9%</b></td>
+            <td>180</td>
+          </tr>
+          <tr>
+            <td></td>
+            <td></td>
+            <td><b>SGST 9%</b></td>
+            <td>180</td>
+          </tr>
+          <tr>
+            <td></td>
+            <td></td>
+            <td><b>Grand Total</b></td>
+            <td>2360</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+  </body>
+</html>

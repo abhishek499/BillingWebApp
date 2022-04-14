@@ -7,7 +7,7 @@ const cookieParser = require("cookie-parser");
 const mongoose = require("mongoose");
 const multer = require("multer");
 const cors = require("cors");
-
+const { GridFsStorage } = require("multer-gridfs-storage");
 
 var ObjectID = require("mongodb").ObjectId;
 var expressValidator = require("express-validator");
@@ -30,6 +30,10 @@ const methodOverride = require("method-override");
 const nodemailer = require("nodemailer");
 
 const pdfkit = require("pdfkit");
+const expressLayouts = require("express-ejs-layouts");
+const invNum = require("invoice-number");
+var Grid = require("gridfs-stream");
+Grid.mongo = mongoose.mongo;
 
 ACCESS_TOKEN_SECRET =
   "asf67567a5s346edf5a7f68d9sgd897ga6g5dkjjhasjdgasdusatd68f67gaf8a987fdg6f65f67gf6dg56fghjmlkskbnsf8g6v8";
@@ -37,6 +41,10 @@ ACCESS_TOKEN_SECRET =
 app.use(express.json());
 app.use(cors());
 app.use(expressValidator());
+
+app.use(express.static("public"));
+app.use(expressLayouts);
+app.set("view engine", "ejs");
 
 // Middleware
 app.use(bodyParser.json());
@@ -53,34 +61,36 @@ const doc = new pdfkit();
 
 const fs = require("fs");
 
-// let gfs;
+const easyinvoice = require("easyinvoice");
 
-// conn.once("open", () => {
-//   // Init stream
-//   gfs = Grid(conn.db, mongoose.mongo);
-//   gfs.collection("uploads");
-// });
+let gfs;
 
-// Create storage engine
-// const storage = new GridFsStorage({
-//   url: url,
-//   file: (req, file) => {
-//     return new Promise((resolve, reject) => {
-//       crypto.randomBytes(16, (err, buf) => {
-//         if (err) {
-//           return reject(err);
-//         }
-//         const filename = buf.toString("hex") + path.extname(file.originalname);
-//         const fileInfo = {
-//           filename: filename,
-//           bucketName: "uploads",
-//         };
-//         resolve(fileInfo);
-//       });
-//     });
-//   },
-// });
-// const upload = multer({ storage });
+conn.once("open", () => {
+  // Init stream
+  gfs = Grid(conn.db, mongoose.mongo);
+  gfs.collection("uploads");
+});
+
+//Create storage engine
+const storage = new GridFsStorage({
+  url: url,
+  file: (req, file) => {
+    return new Promise((resolve, reject) => {
+      crypto.randomBytes(16, (err, buf) => {
+        if (err) {
+          return reject(err);
+        }
+        const filename = buf.toString("hex") + path.extname(file.originalname);
+        const fileInfo = {
+          filename: filename,
+          bucketName: "uploads",
+        };
+        resolve(fileInfo);
+      });
+    });
+  },
+});
+const upload = multer({ storage });
 
 var as = 1;
 app.use(express.static(__dirname + "/public"));
@@ -90,6 +100,86 @@ app.use(cookieParser());
 app.post("/login", (req, res) => {
   // Authenticate User
   console.log("ABhishekkkk");
+  const ress = res;
+  req.checkBody("email", "email field cannot be empty.").notEmpty();
+  req.checkBody("password", "password field cannot be empty.").notEmpty();
+  const errors = req.validationErrors();
+  emailarr = 1;
+  passwordarr = 1;
+  if (errors) {
+    const error = {};
+    console.log("req recieved!");
+    errors.forEach((currentValue, index, array) => {
+      if (currentValue.param == "email") {
+        if (emailarr) {
+          error.email = [currentValue.msg];
+          emailarr = 0;
+        } else error.email.push(currentValue.msg);
+      }
+      if (currentValue.param == "password") {
+        if (passwordarr) {
+          error.password = [currentValue.msg];
+          passwordarr = 0;
+        } else error.password.push(currentValue.msg);
+      }
+    });
+
+    ress.status(401).json({ error: error });
+  } else {
+    MongoClient.connect(url, function (err, db) {
+      if (err) throw err;
+      var dbo = db.db("billingDb");
+      emails = req.body.email;
+      passwordd = req.body.password;
+      dbo
+        .collection("users")
+        .findOne({ email: emails }, function (err, result) {
+          if (err) throw err;
+          console.log(result);
+          if (result) {
+            bcryptt.compare(
+              passwordd,
+              result.Password,
+              function (err, resulttt) {
+                // result == true
+                if (resulttt) {
+                  const accessToken = jwt.sign(
+                    { id: result._id },
+                    ACCESS_TOKEN_SECRET,
+                    { expiresIn: "60d" }
+                  );
+                  ress.json({
+                    success: {
+                      accessToken: accessToken,
+                      admin: result.admin,
+                      setupyourbusinessform: result.setupyourbusinessform
+                        ? result.setupyourbusinessform
+                        : false,
+                      message: "you have successfully login",
+                    },
+                  });
+                } else {
+                  ress.status(401).send({
+                    error: {
+                      creadentialinvalid: "email or password is wrong",
+                    },
+                  });
+                }
+              }
+            );
+          } else {
+            ress.status(401).json({
+              error: { creadentialinvalid: "email or password is wrong" },
+            });
+          }
+        });
+    });
+  }
+});
+
+app.post("/userlogin", (req, res) => {
+  // Authenticate User
+  console.log("ABhishekkkk user");
   const ress = res;
   req.checkBody("email", "email field cannot be empty.").notEmpty();
   req.checkBody("password", "password field cannot be empty.").notEmpty();
@@ -794,6 +884,7 @@ app.post("/addclient", async (req, res) => {
         //   return;
         // } else {
         var myobj = {
+          id: new ObjectID(),
           businessname: req.body.businessName,
           contactnumber: req.body.contactNo,
           address: req.body.address,
@@ -1239,7 +1330,29 @@ app.post("/getuser", (req, res) => {
         .findOne({ _id: new ObjectID(user.id) }, function (err, result) {
           if (err) throw err;
 
-          res.json(result.employees);
+          res.json({ id: result._id, employees: result.employees });
+        });
+    });
+  });
+});
+
+app.post("/getservices", (req, res) => {
+  // Authenticate User
+  console.log("services");
+
+  jwt.verify(req.body.token, ACCESS_TOKEN_SECRET, (err, user) => {
+    if (err) return res.sendStatus(403);
+
+    MongoClient.connect(url, function (err, db) {
+      if (err) throw err;
+      var dbo = db.db("billingDb");
+
+      dbo
+        .collection("users")
+        .findOne({ _id: new ObjectID(user.id) }, function (err, result) {
+          if (err) throw err;
+
+          res.json(result.products);
         });
     });
   });
@@ -1338,42 +1451,287 @@ app.post("/addinvoice", async (req, res) => {
         //   db.close();
         //   return;
         // } else {
-        var myobj = {
-          businessName: req.body.businessName,
-          services: req.body.services,
-        };
-        dbo.collection("users").findOneAndUpdate(
-          { _id: new ObjectID(user.id) },
-          {
-            $push: {
-              invoice: myobj,
-            },
-          },
 
-          async function (err, result) {
+        dbo
+          .collection("users")
+          .findOne({ _id: new ObjectID(user.id) }, function (err, result) {
             if (err) throw err;
 
-            doc.pipe(fs.createWriteStream("output.pdf"));
+            console.log(result.invoice[result.invoice.length - 1].invoiceNo);
+            const services = req.body.services[0];
+            const gTotal = () => {
+              var result = 0;
+              for (var i = 0; i < services.length; i++) {
+                result = result + Number(services[i].price);
+              }
+              console.log(result);
+              return result;
+            };
+            var myobj = {
+              _id: new ObjectID(),
+              businessName: req.body.businessName,
+              date: new Date(),
+              invoiceNo:
+                result.invoice[result.invoice.length - 1].invoiceNo.split(
+                  "/"
+                )[0] +
+                "/" +
+                Number(
+                  Number(
+                    result.invoice[result.invoice.length - 1].invoiceNo.split(
+                      "/"
+                    )[1]
+                  ) + 1
+                ),
+              services: services,
+              total: gTotal(),
+            };
 
-            doc
-              .fontSize(30)
-              .text("Marketonic", { align: "center", weight: "bold" });
+            dbo.collection("users").findOneAndUpdate(
+              { _id: new ObjectID(user.id) },
+              {
+                $push: {
+                  invoice: myobj,
+                },
+              },
 
-            doc.moveDown();
+              async function (err, result) {
+                if (err) return res.sendStatus(403);
 
-            doc.rect(doc.x, 0, 410, doc.y).stroke();
-
-            doc.end();
-            return res.json({
-              success: "you have successfully add new service",
-            });
-          }
-        );
+                return res.json({
+                  success: "you have successfully add new service",
+                });
+              }
+            );
+          });
       }
       // }
     );
   });
 });
+
+app.post("/getclient", (req, res) => {
+  // Authenticate User
+  console.log("getting client");
+
+  jwt.verify(req.body.token, ACCESS_TOKEN_SECRET, (err, user) => {
+    if (err) return res.sendStatus(403);
+
+    MongoClient.connect(url, function (err, db) {
+      if (err) throw err;
+      var dbo = db.db("billingDb");
+
+      dbo
+        .collection("users")
+        .findOne({ _id: new ObjectID(user.id) }, function (err, result) {
+          if (err) throw err;
+
+          res.json({ clients: result.clients, products: result.products });
+        });
+    });
+  });
+});
+
+app.post("/getinvoice", (req, res) => {
+  // Authenticate User
+  console.log("getting invoice");
+
+  jwt.verify(req.body.token, ACCESS_TOKEN_SECRET, (err, user) => {
+    if (err) return res.sendStatus(403);
+
+    MongoClient.connect(url, function (err, db) {
+      if (err) throw err;
+      var dbo = db.db("billingDb");
+
+      dbo
+        .collection("users")
+        .findOne({ _id: new ObjectID(user.id) }, function (err, result) {
+          if (err) throw err;
+
+          res.json({ invoice: result.invoice });
+        });
+    });
+  });
+});
+
+app.post("/download", (req, res) => {
+  jwt.verify(req.body.token, ACCESS_TOKEN_SECRET, (err, user) => {
+    if (err) throw err;
+
+    MongoClient.connect(
+      url,
+      { useNewUrlParser: true, useUnifiedTopology: true },
+      function (err, db) {
+        if (err) throw err;
+        var dbo = db.db("billingDb");
+        dbo.collection("users").findOne(
+          { _id: new ObjectID(user.id) },
+
+          function (err, result) {
+            if (err) return res.sendStatus(403);
+            // console.log(result.invoice[result.invoice.length-1]);
+            const invoice = result.invoice[result.invoice.length - 1];
+
+            const products = result.products;
+            const invoiceProduct = invoice.services;
+            console.log(invoiceProduct);
+            const client =
+              result.clients.find(
+                (item) => item.businessname == invoice.businessName
+              ) || "Not available";
+
+            var services = [];
+
+            for (const item of products) {
+              for (const e of invoiceProduct) {
+                if (item.name === e.product) {
+                  services.push({ ...item, price: e.price });
+                }
+              }
+            }
+
+            // console.log(products);
+            console.log(
+              result.invoice[result.invoice.length - 1].invoiceNo.split(
+                "/"
+              )[0] +
+                "/" +
+                Number(
+                  Number(
+                    result.invoice[result.invoice.length - 1].invoiceNo.split(
+                      "/"
+                    )[1]
+                  ) + 1
+                )
+            );
+
+            res.json({
+              invoiceNo: result.invoice[result.invoice.length - 1].invoiceNo,
+              businessName: result.setupyourbusinessformentry,
+              client: client,
+              services: services,
+              date: result.invoice[result.invoice.length - 1].date
+                .toLocaleString("en-IN")
+                .split(",")[0],
+            });
+          }
+        );
+      }
+    );
+  });
+});
+
+//Set Storage Engine
+
+// const storage = multer.diskStorage({
+//   destination: (req, file, cb) => {
+//     cb(null, "upload");
+//   },
+//   filename: (req, file, cb) => {
+//     console.log(file);
+//     cb(null, Date.now() + path.extname(file.originalname));
+//   },
+// });
+
+// //Init Upload
+// const upload = multer({
+//   storage: Storage,
+//   // fileFilter: function (req, file, cb) {
+//   //   checkFileType(file, cb);
+//   // },
+// }).single("photo");
+
+//Check File Type
+
+function checkFileType(file, cb) {
+  //Allowed ext
+  const fileTypes = /jpeg|jpg|png|gif/;
+  //Check ext
+  const extname = fileTypes.test(path.extname(file.originalname).toLowerCase);
+  //Check mime
+  const mimeType = fileTypes.test(file.mimetype);
+
+  if (mimeType && extname) {
+    return cb(null, true);
+  } else {
+    cb("Error: Images Only!");
+  }
+}
+
+app.post("/upload", (req, res) => {
+  jwt.verify(req.body.token, ACCESS_TOKEN_SECRET, (err, user) => {
+    if (err) throw err;
+
+    MongoClient.connect(url, function (err, db) {
+      if (err) throw err;
+      var dbo = db.db("billingDb");
+
+      // if (req.file) {
+      //   myobj = {
+      //     likes: 0,
+      //     username: token.fullname,
+      //     filename: req.file.filename,
+      //     caption: req.body.caption,
+      //     like: [],
+      //     time: time,
+      //     approved: true,
+      //     comments: [],
+      //   };
+      // }
+
+      if (req.file) {
+        dbo.collection("users").findOneAndUpdate(
+          { _id: new ObjectID(user.id) },
+          {
+            $set: {
+              signature: req.file.filename,
+            },
+          },
+          function (err, result) {
+            if (err) throw err;
+
+            res.json({ message: "uploaded Successfully" });
+          }
+        );
+      } else {
+        res.json({ message: "try again later" });
+      }
+    });
+  });
+});
+
+// app.get("/download", (req, res) => {
+//   doc.pipe(fs.createWriteStream("output.pdf"));
+
+//   doc.fontSize(25).text("Marketonic", 250, 50);
+//   doc
+//     .fontSize(15)
+//     .text("Reg. office: 66c/2b Pura fateh Mohammad ,Naini ,Prayagraj", 80, 75);
+//   doc
+//     .fontSize(15)
+//     .text(
+//       "Corporate Office: : 2nd Floor S N Tower 4C,Maharishi Marg ,Opp. Radio Station, Civil Lines, Prayagraj ,211001",
+//       80,
+//       90
+//     );
+//   doc.fontSize(15).text("Contact: +91-8574817065,+91-7897296398", 80, 122);
+//   doc.fontSize(15).text("GSTIN : 09ABMFM2639N1ZK", 80, 140);
+//   doc.fontSize(15).text("Invoice No : INV0140", 80, 170);
+//   doc.fontSize(15).text("Date: 14/01/22", 80, 185);
+//   doc.fontSize(15).text("Party Name: The Eye Store", 80, 200);
+//   doc
+//     .fontSize(15)
+//     .text(
+//       "Billing Address: 43/15 S P Marg , Civil Lines , Prayagraj 211001.",
+//       80,
+//       215
+//     );
+//   doc.fontSize(15).text("GSTIN : 09AAPFT9178F1ZD", 80, 230);
+//   doc.lineJoin("round").rect(80, 300, 450, 25).fill("#b7bdb9");
+//   doc.fontSize(15).text("Party Name: The Eye Store", 80, 300);
+
+//   doc.end();
+// });
 
 app.listen(8000, () => {
   console.log("Server has succesfully started at port at 8000");
